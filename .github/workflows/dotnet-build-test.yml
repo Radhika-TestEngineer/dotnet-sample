@@ -42,13 +42,14 @@ jobs:
       - name: Build project
         run: dotnet build dotnet-sample.sln --no-restore
 
-           # 5️⃣ Run tests with coverage (store output in known folder)
-      - name: Run tests with coverage
-        run: |
-          mkdir -p ./TestResults
-          dotnet test dotnet-sample.sln --collect:"XPlat Code Coverage" --results-directory ./TestResults -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
-          echo "✅ Test execution complete. Checking for coverage results..."
-          find ./TestResults -name "coverage.cobertura.xml" || echo "⚠️ No coverage file found"
+       # 5️⃣ Run tests with coverage (store output in known folder)
+       - name: Run tests with coverage
+         run: |
+           mkdir -p ./TestResults
+           dotnet test dotnet-sample.sln --collect:"XPlat Code Coverage" --results-directory ./TestResults
+           echo "✅ Checking contents of ./TestResults"
+           ls -R ./TestResults || echo "⚠️ No files found"
+
 
       # 6️⃣ Install ReportGenerator
       - name: Install ReportGenerator
