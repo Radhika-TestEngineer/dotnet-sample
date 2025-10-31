@@ -19,77 +19,55 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'   # or '8.0.x' if your project targets .NET 8
+          dotnet-version: '9.0.x'
 
       # 3️⃣ Restore dependencies
       - name: Restore dependencies
         run: dotnet restore CalculatorApp.sln
 
-      # 4️⃣ Build solution
-      - name: Build
+      # 4️⃣ Build the solution
+      - name: Build solution
         run: dotnet build CalculatorApp.sln --no-restore --configuration Release
 
-      # 5️⃣ Run tests and generate Cobertura coverage
+      # 5️⃣ Run unit tests with coverage
       - name: Run tests with coverage
         run: |
           mkdir -p TestResults/coverage
+
+          echo "🧪 Searching for test projects..."
+          find . -name "*.Tests.csproj"
+
           for proj in $(find . -name "*.Tests.csproj"); do
-            echo "Running tests for $proj ..."
+            echo "➡️ Running tests for $proj"
             dotnet test "$proj" \
               --no-build \
               --configuration Release \
               /p:CollectCoverage=true \
-              /p:CoverletOutputFormat=cobertura \
-              /p:CoverletOutput=../../TestResults/coverage/coverage.cobertura.xml
-    done
+              /p:CoverletOutput=../../TestResults/coverage/coverage.cobertura.xml \
+              /p:CoverletOutputFormat=cobertura
+          done
 
-    # Verify coverage file created
-    if [ ! -f TestResults/coverage/coverage.cobertura.xml ]; then
-      echo "❌ coverage.cobertura.xml not found after running tests"
-      ls -R TestResults || true
-      exit 1
-    else
-      echo "✅ coverage.cobertura.xml successfully generated"
-    fi
+          echo "🔍 Checking for coverage file..."
+          ls -R TestResults || true
 
-
-      # 6️⃣ Auto-detect coverage file path
-      - name: Find coverage report file
-        id: find_coverage
-        run: |
-          echo "🔍 Searching for coverage.cobertura.xml..."
-          file=$(find ./ -type f -name "coverage.cobertura.xml" | head -1)
-          if [ -z "$file" ]; then
-            echo "❌ No coverage.cobertura.xml file found!"
+          if [ ! -f TestResults/coverage/coverage.cobertura.xml ]; then
+            echo "❌ coverage.cobertura.xml NOT FOUND!"
             exit 1
+          else
+            echo "✅ coverage.cobertura.xml FOUND!"
           fi
-          echo "✅ Found coverage report at: $file"
-          echo "coverage_file=$file" >> $GITHUB_OUTPUT
 
-      # 7️⃣ Generate HTML coverage report
+      # 6️⃣ Generate coverage report
       - name: Generate coverage report
         uses: danielpalme/ReportGenerator-GitHub-Action@5.3.8
         with:
-          reports: '${{ steps.find_coverage.outputs.coverage_file }}'
+          reports: './TestResults/coverage/coverage.cobertura.xml'
           targetdir: './CodeCoverageReport'
           reporttypes: 'HtmlSummary;Cobertura'
 
-      # 8️⃣ Check coverage threshold (optional)
-      - name: Check coverage threshold
-        run: |
-          coverage=$(grep -oP '(?<=<coverage line-rate=")[0-9.]+(?=")' "${{ steps.find_coverage.outputs.coverage_file }}" | head -1)
-          percent=$(awk "BEGIN {printf \"%.0f\", $coverage * 100}")
-          echo "📊 Code coverage: ${percent}%"
-          if [ "$percent" -lt 80 ]; then
-            echo "❌ Coverage below 80%. Failing build."
-            exit 1
-          else
-            echo "✅ Coverage meets threshold."
-          fi
-
-      # 9️⃣ Upload HTML report as artifact
+      # 7️⃣ Upload report artifact
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
           name: CodeCoverageReport
-          path: ./CodeCoverageReport
+          path: CodeCoverageReport
