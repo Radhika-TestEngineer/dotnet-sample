@@ -19,7 +19,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x' # Change to '8.0.x' if your project targets .NET 8
+          dotnet-version: '9.0.x'   # Use 8.0.x if your project targets .NET 8
 
       # 3️⃣ Restore dependencies
       - name: Restore dependencies
@@ -29,10 +29,10 @@ jobs:
       - name: Build
         run: dotnet build CalculatorApp.sln --no-restore --configuration Release
 
-      # 5️⃣ Run unit tests with coverage
+      # 5️⃣ Run unit tests and collect coverage in Cobertura format
       - name: Run tests with coverage
         run: |
-          mkdir -p ./TestResults
+          mkdir -p ./TestResults/coverage
           dotnet test CalculatorApp.sln \
             --no-build \
             --configuration Release \
@@ -40,17 +40,27 @@ jobs:
             /p:CoverletOutput=./TestResults/coverage/ \
             /p:CoverletOutputFormat=cobertura
 
-      # 6️⃣ Generate coverage report (HTML)
+      # 6️⃣ Verify that coverage file was created (debug step)
+      - name: Verify coverage file
+        run: |
+          echo "Listing TestResults contents:"
+          ls -R ./TestResults || true
+
+      # 7️⃣ Generate coverage report (HTML)
       - name: Generate coverage report
         uses: danielpalme/ReportGenerator-GitHub-Action@5.3.8
         with:
-          reports: './TestResults/**/coverage.cobertura.xml'   # ✅ Correct pattern
-          targetdir: './CodeCoverageReport'                    # ✅ Output folder
-          reporttypes: 'Html'                                  # Optional (can also use 'HtmlSummary', 'Cobertura', etc.)
+          reports: './TestResults/coverage/coverage.cobertura.xml'
+          targetdir: './CodeCoverageReport'
+          reporttypes: 'HtmlSummary;Cobertura'
 
-      # 7️⃣ Upload report as artifact (optional)
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: CodeCoverageReport
-          path: ./CodeCoverageReport
+      # 8️⃣ (Optional) Enforce minimum coverage threshold (80%)
+      - name: Check coverage threshold
+        run: |
+          coverage=$(grep -oP '(?<=<coverage line-rate=")[0-9.]+(?=")' ./TestResults/coverage/coverage.cobertura.xml | head -1)
+          percent=$(awk "BEGIN {printf \"%.0f\", $coverage * 100}")
+          echo "Code coverage: ${percent}%"
+          if [ "$percent" -lt 80 ]; then
+            echo "❌ Coverage below 80%. Failing build."
+            exit 1
+          else
