@@ -19,17 +19,17 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'   # Use 8.0.x if your project targets .NET 8
+          dotnet-version: '9.0.x'   # or '8.0.x' if your project targets .NET 8
 
       # 3️⃣ Restore dependencies
       - name: Restore dependencies
         run: dotnet restore CalculatorApp.sln
 
-      # 4️⃣ Build the solution
+      # 4️⃣ Build solution
       - name: Build
         run: dotnet build CalculatorApp.sln --no-restore --configuration Release
 
-      # 5️⃣ Run unit tests and collect coverage in Cobertura format
+      # 5️⃣ Run tests and generate Cobertura coverage
       - name: Run tests with coverage
         run: |
           mkdir -p ./TestResults/coverage
@@ -37,30 +37,46 @@ jobs:
             --no-build \
             --configuration Release \
             /p:CollectCoverage=true \
-            /p:CoverletOutput=./TestResults/coverage/ \
-            /p:CoverletOutputFormat=cobertura
+            /p:CoverletOutputFormat=cobertura \
+            /p:CoverletOutput=./TestResults/coverage/coverage.cobertura.xml
 
-      # 6️⃣ Verify that coverage file was created (debug step)
-      - name: Verify coverage file
+      # 6️⃣ Auto-detect coverage file path
+      - name: Find coverage report file
+        id: find_coverage
         run: |
-          echo "Listing TestResults contents:"
-          ls -R ./TestResults || true
+          echo "🔍 Searching for coverage.cobertura.xml..."
+          file=$(find ./ -type f -name "coverage.cobertura.xml" | head -1)
+          if [ -z "$file" ]; then
+            echo "❌ No coverage.cobertura.xml file found!"
+            exit 1
+          fi
+          echo "✅ Found coverage report at: $file"
+          echo "coverage_file=$file" >> $GITHUB_OUTPUT
 
-      # 7️⃣ Generate coverage report (HTML)
+      # 7️⃣ Generate HTML coverage report
       - name: Generate coverage report
         uses: danielpalme/ReportGenerator-GitHub-Action@5.3.8
         with:
-          reports: './TestResults/coverage/coverage.cobertura.xml'
+          reports: '${{ steps.find_coverage.outputs.coverage_file }}'
           targetdir: './CodeCoverageReport'
           reporttypes: 'HtmlSummary;Cobertura'
 
-      # 8️⃣ (Optional) Enforce minimum coverage threshold (80%)
+      # 8️⃣ Check coverage threshold (optional)
       - name: Check coverage threshold
         run: |
-          coverage=$(grep -oP '(?<=<coverage line-rate=")[0-9.]+(?=")' ./TestResults/coverage/coverage.cobertura.xml | head -1)
+          coverage=$(grep -oP '(?<=<coverage line-rate=")[0-9.]+(?=")' "${{ steps.find_coverage.outputs.coverage_file }}" | head -1)
           percent=$(awk "BEGIN {printf \"%.0f\", $coverage * 100}")
-          echo "Code coverage: ${percent}%"
+          echo "📊 Code coverage: ${percent}%"
           if [ "$percent" -lt 80 ]; then
             echo "❌ Coverage below 80%. Failing build."
             exit 1
           else
+            echo "✅ Coverage meets threshold."
+          fi
+
+      # 9️⃣ Upload HTML report as artifact
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: CodeCoverageReport
+          path: ./CodeCoverageReport
