@@ -31,31 +31,32 @@ jobs:
 
       # 5️⃣ Run unit tests with coverage (MSBuild integration)
       - name: Run tests with coverage
-        run: |
-          mkdir -p TestResults/coverage
+  shell: bash
+  run: |
+    mkdir -p TestResults/coverage
 
-          echo "🧪 Searching for test projects..."
-          find . -name "*.Tests.csproj"
+    echo "🧪 Searching for test projects..."
+    find . -type f -name "*.Tests.csproj"
 
-          for proj in $(find . -name "*.Tests.csproj"); do
-            echo "➡️ Running tests for $proj"
-            dotnet test "$proj" \
-              --no-build \
-              --configuration Release \
-              /p:CollectCoverage=true \
-              /p:CoverletOutput=../../TestResults/coverage/ \
-              /p:CoverletOutputFormat=cobertura
-          done
+    while IFS= read -r proj; do
+      echo "➡️ Running tests for $proj"
+      dotnet test "$proj" \
+        --no-build \
+        --configuration Release \
+        /p:CollectCoverage=true \
+        /p:CoverletOutput=../../TestResults/coverage/ \
+        /p:CoverletOutputFormat=cobertura
+    done < <(find . -type f -name "*.Tests.csproj")
 
-          echo "🔍 Checking for coverage file..."
-          find ./TestResults -name "coverage.cobertura.xml" || true
+    echo "🔍 Checking for coverage file..."
+    find ./TestResults -name "coverage.cobertura.xml" || true
 
-          if [ ! -f ./TestResults/coverage/coverage.cobertura.xml ]; then
-            echo "❌ coverage.cobertura.xml NOT FOUND!"
-            exit 1
-          else
-            echo "✅ coverage.cobertura.xml FOUND!"
-          fi
+    if [ ! -f ./TestResults/coverage/coverage.cobertura.xml ]; then
+      echo "❌ coverage.cobertura.xml NOT FOUND!"
+      exit 1
+    else
+      echo "✅ coverage.cobertura.xml FOUND!"
+    fi
 
       # 6️⃣ Generate coverage report (HTML + Cobertura)
       - name: Generate coverage report
