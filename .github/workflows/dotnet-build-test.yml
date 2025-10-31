@@ -25,6 +25,12 @@ jobs:
       - name: Build
         run: dotnet build CalculatorApp.sln --no-restore --configuration Release
 
+      - name: Build solution
+        run: |
+          dotnet build CalculatorApp.sln --no-restore --configuration Release
+          dotnet build CalculatorApp.Tests/CalculatorApp.Tests.csproj --no-restore --configuration Release
+  
+
       - name: Run tests with coverage
         run: |
           dotnet test CalculatorApp.Tests/CalculatorApp.Tests.csproj `
