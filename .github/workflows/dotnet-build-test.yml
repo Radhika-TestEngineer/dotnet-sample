@@ -32,13 +32,26 @@ jobs:
       # 5️⃣ Run tests and generate Cobertura coverage
       - name: Run tests with coverage
         run: |
-          mkdir -p ./TestResults/coverage
-          dotnet test CalculatorApp.sln \
-            --no-build \
-            --configuration Release \
-            /p:CollectCoverage=true \
-            /p:CoverletOutputFormat=cobertura \
-            /p:CoverletOutput=./TestResults/coverage/coverage.cobertura.xml
+          mkdir -p TestResults/coverage
+          for proj in $(find . -name "*.Tests.csproj"); do
+            echo "Running tests for $proj ..."
+            dotnet test "$proj" \
+              --no-build \
+              --configuration Release \
+              /p:CollectCoverage=true \
+              /p:CoverletOutputFormat=cobertura \
+              /p:CoverletOutput=../../TestResults/coverage/coverage.cobertura.xml
+    done
+
+    # Verify coverage file created
+    if [ ! -f TestResults/coverage/coverage.cobertura.xml ]; then
+      echo "❌ coverage.cobertura.xml not found after running tests"
+      ls -R TestResults || true
+      exit 1
+    else
+      echo "✅ coverage.cobertura.xml successfully generated"
+    fi
+
 
       # 6️⃣ Auto-detect coverage file path
       - name: Find coverage report file
