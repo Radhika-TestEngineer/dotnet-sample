@@ -19,7 +19,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x' # or '8.0.x' based on your project target
+          dotnet-version: '9.0.x' # Change to '8.0.x' if your project targets .NET 8
 
       # 3️⃣ Restore dependencies
       - name: Restore dependencies
@@ -35,11 +35,21 @@ jobs:
           mkdir -p ./TestResults
           dotnet test CalculatorApp.sln \
             --no-build \
+            --configuration Release \
             --collect:"XPlat Code Coverage" \
             --results-directory ./TestResults
 
-      # 6️⃣ Generate coverage report
+      # 6️⃣ Generate coverage report (HTML)
       - name: Generate coverage report
         uses: danielpalme/ReportGenerator-GitHub-Action@5.3.8
         with:
-          reports: './TestResults/**/**
+          reports: './TestResults/**/coverage.cobertura.xml'   # ✅ Correct pattern
+          targetdir: './CodeCoverageReport'                    # ✅ Output folder
+          reporttypes: 'Html'                                  # Optional (can also use 'HtmlSummary', 'Cobertura', etc.)
+
+      # 7️⃣ Upload report as artifact (optional)
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: CodeCoverageReport
+          path: ./CodeCoverageReport
